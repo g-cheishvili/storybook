@@ -1,25 +1,15 @@
-import type { StorybookConfig } from '@storybook/types';
-import type { PackageJson } from '../../js-package-manager';
 import { makePackageManager, mockStorybookData } from '../helpers/testing-helpers';
 import { angularBuildersMultiproject } from './angular-builders-multiproject';
 import * as helpers from '../../helpers';
 import * as angularHelpers from '../../generators/ANGULAR/helpers';
 
-const checkAngularBuilders = async ({
-  packageJson,
-  main: mainConfig = {},
-  storybookVersion = '7.0.0',
-}: {
-  packageJson: PackageJson;
-  main?: Partial<StorybookConfig> & Record<string, unknown>;
-  storybookVersion?: string;
-}) => {
-  mockStorybookData({ mainConfig, storybookVersion });
+const checkAngularBuilders = async () => {
+  mockStorybookData({ mainConfig: {}, storybookVersion: '7.0.0' });
 
   // mock file system (look at eslint plugin test)
 
   return angularBuildersMultiproject.check({
-    packageManager: makePackageManager(packageJson),
+    packageManager: makePackageManager({}),
   });
 };
 
@@ -33,17 +23,17 @@ jest.mock('../../generators/ANGULAR/helpers', () => ({
   AngularJSON: jest.fn(),
 }));
 
+jest.mock('@angular/core', () => ({
+  VERSION: { major: 13 },
+}));
+
 describe('is Nx project', () => {
   beforeEach(() => {
     (helpers.isNxProject as any as jest.SpyInstance).mockReturnValue(true);
   });
 
   it('should return null', async () => {
-    const packageJson = {
-      dependencies: { '@storybook/angular': '^7.0.0-alpha.0' },
-    };
-
-    await expect(checkAngularBuilders({ packageJson })).resolves.toBeNull();
+    await expect(checkAngularBuilders()).resolves.toBeNull();
   });
 });
 
@@ -56,30 +46,22 @@ describe('is not Nx project', () => {
     afterEach(jest.restoreAllMocks);
 
     describe('Angular not found', () => {
-      const packageJson = {
-        dependencies: { '@storybook/angular': '^7.0.0-alpha.0' },
-      };
-
       it('should return null', async () => {
-        await expect(checkAngularBuilders({ packageJson })).resolves.toBeNull();
+        await expect(checkAngularBuilders()).resolves.toBeNull();
       });
     });
 
     describe('Angular < 14.0.0', () => {
-      const packageJson = {
-        dependencies: { '@storybook/angular': '^7.0.0-alpha.0', '@angular/core': '^12.0.0' },
-      };
-
       it('should return null', async () => {
-        await expect(checkAngularBuilders({ packageJson })).resolves.toBeNull();
+        await expect(checkAngularBuilders()).resolves.toBeNull();
       });
     });
 
     describe('Angular >= 14.0.0', () => {
-      const packageJson = {
-        dependencies: { '@storybook/angular': '^7.0.0-alpha.0', '@angular/core': '^15.0.0' },
-      };
-
+      beforeEach(() => {
+        // Mock Angular version
+        jest.requireMock('@angular/core').VERSION = { major: 14 };
+      });
       describe('has one Storybook builder defined', () => {
         beforeEach(() => {
           // Mock AngularJSON.constructor
@@ -89,7 +71,7 @@ describe('is not Nx project', () => {
         });
 
         it('should return null', async () => {
-          await expect(checkAngularBuilders({ packageJson })).resolves.toBeNull();
+          await expect(checkAngularBuilders()).resolves.toBeNull();
         });
       });
 
@@ -106,7 +88,7 @@ describe('is not Nx project', () => {
         });
 
         it('should return null', async () => {
-          await expect(checkAngularBuilders({ packageJson })).resolves.toBeNull();
+          await expect(checkAngularBuilders()).resolves.toBeNull();
         });
       });
 
@@ -124,7 +106,7 @@ describe('is not Nx project', () => {
         });
 
         it('should return an empty object', async () => {
-          await expect(checkAngularBuilders({ packageJson })).resolves.toMatchObject({});
+          await expect(checkAngularBuilders()).resolves.toMatchObject({});
         });
       });
     });

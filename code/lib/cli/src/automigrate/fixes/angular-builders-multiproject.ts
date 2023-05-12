@@ -1,10 +1,8 @@
 import { dedent } from 'ts-dedent';
-import semver from 'semver';
 import chalk from 'chalk';
 import type { Fix } from '../types';
 import { isNxProject } from '../../helpers';
 import { AngularJSON } from '../../generators/ANGULAR/helpers';
-import { isCoercible } from '../helpers/semver';
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface AngularBuildersMultiprojectRunOptions {}
@@ -20,18 +18,23 @@ export const angularBuildersMultiproject: Fix<AngularBuildersMultiprojectRunOpti
     if (isNxProject(packageJSON)) {
       return null;
     }
-    const allDependencies = packageManager.getAllDependencies();
 
-    const angularVersion = allDependencies['@angular/core'];
-    const angularCoerced = isCoercible(angularVersion) && semver.coerce(angularVersion)?.version;
+    const angularMajor = (() => {
+      try {
+        // eslint-disable-next-line import/no-extraneous-dependencies, global-require
+        return require('@angular/core').VERSION.major;
+      } catch (e) {
+        return null;
+      }
+    })();
 
     // skip non-angular projects
-    if (!angularCoerced) {
+    if (!angularMajor) {
       return null;
     }
 
     // Is Angular version lower than 14? -> throw an error (only supports ng 14)
-    if (semver.lt(angularCoerced, '14.0.0')) {
+    if (angularMajor < 14) {
       return null;
     }
 
